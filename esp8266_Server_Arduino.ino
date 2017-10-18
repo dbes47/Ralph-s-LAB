@@ -6,7 +6,8 @@
 DHT mydht(DHTPIN, DHTTYPE);
 
 
-SoftwareSerial esp8266(10,11); // make RX Arduino line is pin 10, make TX Arduino line is pin 11.
+SoftwareSerial esp8266(10,11);
+// 아두이노 10번 핀을 수신으로, 11번 핀을 송신으로 살정한다.
 // This means that you need to connect the TX line from the esp to the Arduino's pin 10
 // and the RX line from the esp to the Arduino's pin 11
 
@@ -15,8 +16,8 @@ void setup()
 {
 Serial.begin(9600); // 시리얼 모니터의 baud rate 설정
 esp8266.begin(9600); // your esp's baud rate might be different
-sendData("AT+RST\r\n",2000,DEBUG); // reset module
-sendData("AT+CWMODE=1\r\n",1000,DEBUG); // configure as access point
+sendData("AT+RST\r\n",2000,DEBUG); // 모듈 리셋
+sendData("AT+CWMODE=1\r\n",1000,DEBUG); // 스테이션 모드로 설정
 
 //sendData("AT+CWLAP\r\n",1000,DEBUG); 
 sendData("AT+CWJAP=ralph 5,password\r\n",1000,DEBUG); 
