@@ -1,21 +1,47 @@
 int servo=2;
-int max=180;
-int min=0;
-float val=0;
+float degree=0;
+int rpm=20;
+float waitTime=rpm*9;
+int a=0;
+bool maiCaused=false;
+bool done=false;
 void setup() {
-  // put your setup code here, to run once:
 pinMode(servo,OUTPUT);
 Serial.begin(9600);
+initServo();
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-  val++;
-  float valP=map(val,0,1024,1,2);
-  constrain(valP,1,2);
+  if(maiCaused==false){
+movingServo(120);
+  }else if(done==false){
+    movingServo(90);
+    done=true;
+  }
+}
+
+void initServo(){
+  int elapsedTime=millis();
+ do{
+  digitalWrite(servo,HIGH);
+  delay(0);
+  digitalWrite(servo,LOW);
+  delay(rpm);
+}while(millis()-elapsedTime<800);
+Serial.println("done");
+}
+
+void movingServo(float _degree){
+  int elapsedTime=millis();  
+degree=abs(degree-_degree);
+float _delta=degree/90*1000;
+Serial.println(a);
+
+do{
 digitalWrite(servo, HIGH);
-delay(valP);
+delayMicroseconds(_delta);
 digitalWrite(servo,LOW);
-delay(20-valP);
-Serial.println(valP);
+delayMicroseconds(rpm*1000);  
+}while(millis()-elapsedTime<800);
+maiCaused=true;
 }
