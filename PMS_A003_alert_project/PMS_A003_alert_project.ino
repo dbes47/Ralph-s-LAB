@@ -51,7 +51,10 @@ uint64_t FLIPPED[] = {//대칭시키기 위한 빈 64비트 배열
   0x0000000000000000,
   0x0000000000000000,
   0x0000000000000000,
-  0x0000000000000000
+  0x0000000000000000,
+  0x0000000000000000,
+  0x0000000000000000//nothing
+
 };
 
 uint64_t IMAGES[] = {//실제 화면에 뿌려지게될 배열
@@ -72,7 +75,7 @@ PMS pms(mySerial);
 PMS::DATA data;
 int pmValue25;
 int pmValue100;
-const int interVal=2000;//측정 인터벌
+const int interVal=500;//측정 인터벌
 int colorValR=0;//rgb 색상값 변
 int colorValG=0;
 int colorValB=0;
@@ -83,7 +86,7 @@ void setup() {
 
   pixels.begin();
   flipBitArray();//숫자를 대칭작업하여 제대로 보이게 하기
-  // Open serial communications and wait for port to open:
+
   Serial.begin(9600);
   while (!Serial) {
     ; // wait for serial port to connect. Needed for native USB port only
@@ -106,7 +109,7 @@ int readPM(){
     Serial.print(pmValue25);
     Serial.print("_BAD_");
     Serial.println(pmValue100);
-    colorValR=10;
+    colorValR=dim;
     colorValG=0;
     colorValB=0;
   }else{
@@ -116,10 +119,17 @@ int readPM(){
 
     colorValR=0;
     colorValG=0;
-    colorValB=10;
+    colorValB=dim;
   }
   cleanIMAGES();
-  setIMAGES(random(9)+1, random(9)+1, random(9)+1, random(9)+1);
+  if(pmValue25>99 && pmValue25<999){
+    setIMAGES(10,pmValue25/100,(pmValue25%100)/10,pmValue25%10);
+  }else if(pmValue25>9 && pmValue25<100){
+    setIMAGES(10,11,pmValue25/10,pmValue25%10);
+  }else if(pmValue25<10){
+    setIMAGES(10,11,11,pmValue25);
+  }
+  //setIMAGES(random(9)+1, random(9)+1, random(9)+1, random(9)+1);
 }
 
 void loop() { // run over and over
@@ -129,9 +139,9 @@ void loop() { // run over and over
 
 void flipBitArray() {//원점 대칭 후 좌우 대칭
 
-  for (int _n = 0; _n < 10; _n++) {
+  for (int _n = 0; _n < 12; _n++) {
     temp = temp & bitCleaner;
-    temp2 = temp2 & bitCleaner;
+    temp2 = temp2 & bitCleaner;//임시 비트들을 지우기
     for (int j = 0; j < 64; j++) {
       temp = IMAGES_SOURCE[_n] << j;
       temp = temp >> 63;
@@ -148,10 +158,10 @@ void flipBitArray() {//원점 대칭 후 좌우 대칭
 }
 
 void setIMAGES(int _num1, int _num2, int _num3, int _num4) {
-  IMAGES[0] = IMAGES[0] | FLIPPED[_num1-1];
-  IMAGES[1] = IMAGES[1] | FLIPPED[_num2-1];
-  IMAGES[2] = IMAGES[2] | FLIPPED[_num3-1];
-  IMAGES[3] = IMAGES[3] | FLIPPED[_num4-1];
+  IMAGES[0] = IMAGES[0] | FLIPPED[_num1];
+  IMAGES[1] = IMAGES[1] | FLIPPED[_num2];
+  IMAGES[2] = IMAGES[2] | FLIPPED[_num3];
+  IMAGES[3] = IMAGES[3] | FLIPPED[_num4];
 }
 
 void cleanIMAGES() {
@@ -171,7 +181,7 @@ void showNumber() {
       _i = (i / 8 + 1) * 8 - i % 8 - 1;
     }
     if (bitRead(IMAGES[i / 64], _i % 64) == 1) {
-      pixels.setPixelColor(i, pixels.Color(5, 5, 0));
+      pixels.setPixelColor(i, pixels.Color(1, 1, 0));
     } else {
       pixels.setPixelColor(i, pixels.Color(colorValR, colorValG, colorValB));
     }
