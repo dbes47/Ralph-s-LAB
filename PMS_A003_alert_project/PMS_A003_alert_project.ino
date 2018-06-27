@@ -12,10 +12,10 @@
 #define NUMPIXELS      256
 Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800); // led 객체를 선언
 
-int delayval = 50; // delay for half a second
-
+int delayval = 2000; // delay for half a second
+int swap_flag = 12;
 ///////////////////////////////////led parts
-const int dim=1;//밝기값
+const int dim = 50; //밝기값
 
 //  0x00606e6a6a6e6000,미
 //  0x007e1866187e1800 초
@@ -33,8 +33,9 @@ const uint64_t IMAGES_SOURCE[] = { //number figure 64bit array
   0x0060785f47606000,//7
   0x00367f49497f3600,//8
   0x003e7f49497b3200,//9
-  0x0025297777292500,//pm2.5
-  0x0000000000000000//공백
+  0x0025297777292500,//초
+  0x0000000000000000,//공백
+  0x7e7e003c24243c00//미
 };
 
 uint64_t temp = 0x0000000000000000;
@@ -53,8 +54,8 @@ uint64_t FLIPPED[] = {//대칭시키기 위한 빈 64비트 배열
   0x0000000000000000,
   0x0000000000000000,
   0x0000000000000000,
-  0x0000000000000000//nothing
-
+  0x0000000000000000,//nothing
+  0x0000000000000000
 };
 
 uint64_t IMAGES[] = {//실제 화면에 뿌려지게될 배열
@@ -75,11 +76,12 @@ PMS pms(mySerial);
 PMS::DATA data;
 int pmValue25;
 int pmValue100;
-const int interVal=500;//측정 인터벌
-int colorValR=0;//rgb 색상값 변
-int colorValG=0;
-int colorValB=0;
+const int interVal = 500; //측정 인터벌
+int colorValR = 0; //rgb 색상값 변
+int colorValG = 0;
+int colorValB = 0;
 Timer t;
+Timer flag;
 
 
 void setup() {
@@ -97,51 +99,74 @@ void setup() {
 
   // set the data rate for the SoftwareSerial port
   mySerial.begin(9600);
-  t.every(interVal,readPM);
+  t.every(interVal, readPM);
+  flag.every(5000,changeFlag);
+}
+void changeFlag(){//미세와 초미세 플래그 반전
+  if(swap_flag==12){
+    swap_flag=10;
+  }else{
+    swap_flag=12;
+  }
 }
 
-int readPM(){
-  if(pms.readUntil(data)){
-      pmValue25=data.PM_AE_UG_2_5;
-      pmValue100=data.PM_AE_UG_10_0;
+
+int readPM() {
+  if (pms.readUntil(data)) {
+    pmValue25 = data.PM_AE_UG_2_5;
+    pmValue100 = data.PM_AE_UG_10_0;
   }
-  if(pmValue25>35 || pmValue100>80){
+  if (pmValue25 > 35 || pmValue100 > 80) {
     Serial.print(pmValue25);
     Serial.print("_BAD_");
     Serial.println(pmValue100);
-    colorValR=dim;
-    colorValG=0;
-    colorValB=0;
-  }else{
+    colorValR = dim;
+    colorValG = 0;
+    colorValB = 0;
+  } else {
     Serial.print(pmValue25);
     Serial.print("_GOOD_");
     Serial.println(pmValue100);
 
-    colorValR=0;
-    colorValG=0;
-    colorValB=dim;
+    colorValR = 0;
+    colorValG = 0;
+    colorValB = dim;
   }
   cleanIMAGES();
-  if(pmValue25>99 && pmValue25<999){
-    setIMAGES(10,pmValue25/100,(pmValue25%100)/10,pmValue25%10);
-  }else if(pmValue25>9 && pmValue25<100){
-    setIMAGES(10,11,pmValue25/10,pmValue25%10);
-  }else if(pmValue25<10){
-    setIMAGES(10,11,11,pmValue25);
+  //미세먼지 농도에 따른 수치 표시하기
+  if (swap_flag == 12) {
+    if (pmValue25 > 99 && pmValue25 < 999) {
+      setIMAGES(10, pmValue25 / 100, (pmValue25 % 100) / 10, pmValue25 % 10);
+    } else if (pmValue25 > 9 && pmValue25 < 100) {
+      setIMAGES(10, 11, pmValue25 / 10, pmValue25 % 10);
+    } else if (pmValue25 < 10) {
+      setIMAGES(10, 11, 11, pmValue25);
+    }
+  } else if(swap_flag==10){
+    if (pmValue100 > 99 && pmValue100 < 999) {
+      setIMAGES(12, pmValue100 / 100, (pmValue100 % 100) / 10, pmValue100 % 10);
+    } else if (pmValue100 > 9 && pmValue100 < 100) {
+      setIMAGES(12, 11, pmValue100 / 10, pmValue100 % 10);
+    } else if (pmValue100 < 10) {
+      setIMAGES(12, 11, 11, pmValue100);
+    }
   }
   //setIMAGES(random(9)+1, random(9)+1, random(9)+1, random(9)+1);
 }
 
 void loop() { // run over and over
+  flag.update();
   t.update();
   showNumber();
 }
 
-void flipBitArray() {//원점 대칭 후 좌우 대칭
+void flipBitArray() { //원점 대칭 후 좌우 대칭
 
-  for (int _n = 0; _n < 12; _n++) {
+  for (int _n = 0; _n < 13; _n++) {
+
     temp = temp & bitCleaner;
     temp2 = temp2 & bitCleaner;//임시 비트들을 지우기
+
     for (int j = 0; j < 64; j++) {
       temp = IMAGES_SOURCE[_n] << j;
       temp = temp >> 63;
@@ -181,7 +206,7 @@ void showNumber() {
       _i = (i / 8 + 1) * 8 - i % 8 - 1;
     }
     if (bitRead(IMAGES[i / 64], _i % 64) == 1) {
-      pixels.setPixelColor(i, pixels.Color(1, 1, 0));
+      pixels.setPixelColor(i, pixels.Color(0, 30, 0));
     } else {
       pixels.setPixelColor(i, pixels.Color(colorValR, colorValG, colorValB));
     }
