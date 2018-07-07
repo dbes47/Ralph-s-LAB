@@ -7,15 +7,21 @@
 #include <avr/power.h>
 #endif
 
+#define LG 6//신호등 릴레이 녹색
+#define LY 5//황색
+#define LR 4//적색
 
 #define PIN            2 //led를 i2c로 통신할 포트 설정
-#define NUMPIXELS      256
-Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800); // led 객체를 선언
+#define NUMPIXELS      256 //led 수량
 
-int delayval = 2000; // delay for half a second
+
+
+
+const int delayval = 2000; // delay for half a second
 int swap_flag = 12;
 ///////////////////////////////////led parts
-const int dim = 50; //밝기값
+const int dim = 1; //배경 밝기값
+const int t_dim = 30; //글자 밝기값
 
 //  0x00606e6a6a6e6000,미
 //  0x007e1866187e1800 초
@@ -68,8 +74,7 @@ uint64_t IMAGES[] = {//실제 화면에 뿌려지게될 배열
 //////////////led parts end//////////////////////////
 
 
-
-
+Adafruit_NeoPixel pixels = Adafruit_NeoPixel(NUMPIXELS, PIN, NEO_GRB + NEO_KHZ800); // led 객체를 선언
 
 SoftwareSerial mySerial(10, 11); // RX, TX
 PMS pms(mySerial);
@@ -85,53 +90,94 @@ Timer flag;
 
 
 void setup() {
+  pinMode(LG, OUTPUT);
+  pinMode(LY, OUTPUT);
+  pinMode(LR, OUTPUT); //신호등 제어핀
 
-  pixels.begin();
+
+  pixels.begin();//led 초기화
   flipBitArray();//숫자를 대칭작업하여 제대로 보이게 하기
 
-  Serial.begin(9600);
+  Serial.begin(9600);//미세먼지 값을 받아오기 위한 시리얼 통신 시작
   while (!Serial) {
-    ; // wait for serial port to connect. Needed for native USB port only
+    // wait for serial port to connect. Needed for native USB port only
   }
-
-
   Serial.println("initializing PMS A003");
 
-  // set the data rate for the SoftwareSerial port
-  mySerial.begin(9600);
-  t.every(interVal, readPM);
-  flag.every(5000,changeFlag);
+  mySerial.begin(9600); // 센서와 통신하기 위한 시리얼 통신 시작
+  t.every(interVal, readPM);//센서 및 디스플레이, 신호등과 연동하기 위한 타이머
+  flag.every(5000, changeFlag);//초미세와 미세의 전환 타이머
 }
-void changeFlag(){//미세와 초미세 플래그 반전
-  if(swap_flag==12){
-    swap_flag=10;
-  }else{
-    swap_flag=12;
+
+void changeFlag() { //미세와 초미세 플래그 반전
+  if (swap_flag == 12) {
+    swap_flag = 10;
+  } else {
+    swap_flag = 12;
   }
 }
 
+void sinho_all_off() { //신호를 전체 끄기
+  digitalWrite(LG, HIGH);
+  digitalWrite(LY, HIGH);
+  digitalWrite(LR, HIGH);
+}
 
-int readPM() {
+void sinho(int color) {
+  sinho_all_off();
+  switch (color) {
+    case 1:
+      digitalWrite(LR, LOW);
+      break;
+    case 2:
+      digitalWrite(LY, LOW);
+      break;
+    case 3:
+      digitalWrite(LG, LOW);
+      break;
+  }
+}
+
+void readPM() {
   if (pms.readUntil(data)) {
     pmValue25 = data.PM_AE_UG_2_5;
     pmValue100 = data.PM_AE_UG_10_0;
   }
-  if (pmValue25 > 35 || pmValue100 > 80) {
+
+  if (pmValue25 > 76 || pmValue100 > 150) {
     Serial.print(pmValue25);
-    Serial.print("_BAD_");
+    Serial.print("_TOO BAD_");
     Serial.println(pmValue100);
+
     colorValR = dim;
     colorValG = 0;
     colorValB = 0;
-  } else {
+
+    sinho(1);
+  }
+  else if ((pmValue25 > 35 && pmValue25 <= 75) || (pmValue100 > 80 && pmValue100 <= 150)) {
+    Serial.print(pmValue25);
+    Serial.print("_BAD_");
+    Serial.println(pmValue100);
+
+    colorValR = dim;
+    colorValG = dim;
+    colorValB = 0;
+
+    sinho(2);
+  }
+  else {
     Serial.print(pmValue25);
     Serial.print("_GOOD_");
     Serial.println(pmValue100);
 
     colorValR = 0;
-    colorValG = 0;
-    colorValB = dim;
+    colorValG = dim;
+    colorValB = 0;
+
+    sinho(3);
   }
+
   cleanIMAGES();
   //미세먼지 농도에 따른 수치 표시하기
   if (swap_flag == 12) {
@@ -142,7 +188,7 @@ int readPM() {
     } else if (pmValue25 < 10) {
       setIMAGES(10, 11, 11, pmValue25);
     }
-  } else if(swap_flag==10){
+  } else if (swap_flag == 10) {
     if (pmValue100 > 99 && pmValue100 < 999) {
       setIMAGES(12, pmValue100 / 100, (pmValue100 % 100) / 10, pmValue100 % 10);
     } else if (pmValue100 > 9 && pmValue100 < 100) {
@@ -206,7 +252,7 @@ void showNumber() {
       _i = (i / 8 + 1) * 8 - i % 8 - 1;
     }
     if (bitRead(IMAGES[i / 64], _i % 64) == 1) {
-      pixels.setPixelColor(i, pixels.Color(0, 30, 0));
+      pixels.setPixelColor(i, pixels.Color(t_dim, 0, t_dim));
     } else {
       pixels.setPixelColor(i, pixels.Color(colorValR, colorValG, colorValB));
     }

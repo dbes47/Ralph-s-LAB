@@ -5,7 +5,7 @@
 #include <Arduino.h>
 #include <U8g2lib.h>
 
-U8G2_SSD1306_128X32_UNIVISION_1_SW_I2C u8g2(U8G2_R0, /* clock=*/ 9, /* data=*/ 10, /* reset=*/ U8X8_PIN_NONE);
+U8G2_SSD1306_128X32_UNIVISION_1_SW_I2C u8g2(U8G2_R0, /* clock=*/ 10, /* data=*/ 11, /* reset=*/ U8X8_PIN_NONE);
 
 int delayval = 500; // delay for half a second
 
