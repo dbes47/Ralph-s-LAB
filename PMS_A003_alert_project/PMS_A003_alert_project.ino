@@ -3,9 +3,6 @@
 #include "PMS.h"
 #include <SoftwareSerial.h>
 #include <Adafruit_NeoPixel.h>
-#ifdef __AVR__
-#include <avr/power.h>
-#endif
 
 #define LG 6//신호등 릴레이 녹색
 #define LY 5//황색
@@ -15,13 +12,15 @@
 #define NUMPIXELS      256 //led 수량
 
 
-
-
 const int delayval = 2000; // delay for half a second
-int swap_flag = 12;
+int swap_flag = 12;//미세먼지 초미세먼지 토글 변수
+int veryBadPoint = 0;//매우나쁨 누적포인트
+int badPoint = 0;//나쁨 누적 포인트
+int goodSosoPoint = 0;//좋음 보통 포인트
 ///////////////////////////////////led parts
-const int dim = 1; //배경 밝기값
+const int dim = 0; //배경 밝기값
 const int t_dim = 30; //글자 밝기값
+const int sensitivity=10; //공기질 표현변화 민감도 클수록 민감도 떨어짐
 
 //  0x00606e6a6a6e6000,미
 //  0x007e1866187e1800 초
@@ -122,18 +121,53 @@ void sinho_all_off() { //신호를 전체 끄기
   digitalWrite(LY, HIGH);
   digitalWrite(LR, HIGH);
 }
+void changeAirCondition(int condition) {
+
+}
+void makeAllPointZero() {
+  veryBadPoint = 0;
+  badPoint = 0;
+  goodSosoPoint = 0;
+}
 
 void sinho(int color) {
-  sinho_all_off();
+
   switch (color) {
     case 1:
-      digitalWrite(LR, LOW);
+      colorValR = dim;
+      colorValG = 0;
+      colorValB = 0;
+      veryBadPoint++;
+      if (veryBadPoint == sensitivity) {
+        makeAllPointZero();
+        changeAirCondition(1);
+        sinho_all_off();
+        digitalWrite(LR, LOW);
+      }
       break;
     case 2:
-      digitalWrite(LY, LOW);
+      colorValR = dim;
+      colorValG = dim;
+      colorValB = 0;
+      badPoint++;
+      if (badPoint == sensitivity) {
+        makeAllPointZero();
+        changeAirCondition(2);
+        sinho_all_off();
+        digitalWrite(LY, LOW);
+      }
       break;
     case 3:
-      digitalWrite(LG, LOW);
+      colorValR = 0;
+      colorValG = dim;
+      colorValB = 0;
+      goodSosoPoint++;
+      if (goodSosoPoint == sensitivity) {
+        makeAllPointZero();
+        changeAirCondition(2);
+        sinho_all_off();
+        digitalWrite(LG, LOW);
+      }
       break;
   }
 }
@@ -143,40 +177,20 @@ void readPM() {
     pmValue25 = data.PM_AE_UG_2_5;
     pmValue100 = data.PM_AE_UG_10_0;
   }
-
+  Serial.print(pmValue25);
   if (pmValue25 > 76 || pmValue100 > 150) {
-    Serial.print(pmValue25);
     Serial.print("_TOO BAD_");
-    Serial.println(pmValue100);
-
-    colorValR = dim;
-    colorValG = 0;
-    colorValB = 0;
-
     sinho(1);
   }
   else if ((pmValue25 > 35 && pmValue25 <= 75) || (pmValue100 > 80 && pmValue100 <= 150)) {
-    Serial.print(pmValue25);
     Serial.print("_BAD_");
-    Serial.println(pmValue100);
-
-    colorValR = dim;
-    colorValG = dim;
-    colorValB = 0;
-
     sinho(2);
   }
   else {
-    Serial.print(pmValue25);
     Serial.print("_GOOD_");
-    Serial.println(pmValue100);
-
-    colorValR = 0;
-    colorValG = dim;
-    colorValB = 0;
-
     sinho(3);
   }
+  Serial.println(pmValue100);
 
   cleanIMAGES();
   //미세먼지 농도에 따른 수치 표시하기
@@ -197,7 +211,6 @@ void readPM() {
       setIMAGES(12, 11, 11, pmValue100);
     }
   }
-  //setIMAGES(random(9)+1, random(9)+1, random(9)+1, random(9)+1);
 }
 
 void loop() { // run over and over
